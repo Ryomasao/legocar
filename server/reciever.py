@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+
+
 import socket
 import legocar_controller  as LegoCar
 
@@ -39,6 +41,8 @@ def recieve_order():
             myLegoCar.accelerator(message)
             #レゴカーのハンドル(右と左)
             myLegoCar.handle(message)
+            #クレーン
+            myLegoCar.crane(message)
          except OSError:
             print('OSError')
             myLegoCar.stop()

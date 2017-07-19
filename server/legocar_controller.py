@@ -12,7 +12,7 @@ class LegoCarController:
 
         pi.wiringPiSetupGpio()
         #DCモーターを制御するクラス
-        self.dcmotor = DCmotor(motor_pin1=20,motor_pin2=21)
+        self.dcmotor = DCmotor_DRV8835(motor_pin1=14, motor_pin2=15, motor_pin3=20, motor_pin4=21)
         #サーボモータを制御するクラス
         self.servo_motor = ServoMotor(18)
 
@@ -34,19 +34,25 @@ class LegoCarController:
         elif order == (b'd'):
             #ステアリングの命令は無視
             pass
+        elif order == (b'h'):
+            #クレーンの命令は無視
+            pass
+        elif order == (b'j'):
+            #クレーンの命令は無視
+            pass
         else:
             #止まる
             self.stop()
 
 
     def moveForward(self):
-       self.dcmotor.forward()
+       self.dcmotor.forwardAmotor()
 
     def moveBack(self):
-        self.dcmotor.reverse()
+        self.dcmotor.reverseAmotor()
 
     def stop(self):
-        self.dcmotor.stop()
+        self.dcmotor.stopAmotor()
 
     def handle(self, order):
         '''
@@ -64,6 +70,106 @@ class LegoCarController:
         else:
             pass
 
+    def crane(self,order):
+        if order == b'h' :
+            #右
+            self.dcmotor.forwardBmotor()
+        elif order == b'j':
+            #左
+            self.dcmotor.reverseBmotor()
+        elif order == (b'a'):
+            #ステアリングの命令は無視
+            pass
+        elif order == (b'd'):
+            #ステアリングの命令は無視
+            pass
+        elif order == (b'w'):
+            #アクセルの命令は無視
+            pass
+        elif order == (b's'):
+            #アクセルの命令は無視
+            pass
+        else:
+            self.dcmotor.stopBmotor()
+
+class DCmotor_DRV8835:
+    '''
+    DRV8835メモ
+    ModeはPMW
+        AIN1:PHASE:PMW:motor_pin1
+        AIN2:ENABLE:motor_pin2
+        BIN1:PAHSE:motor_pin3
+        BIN2:ENABLE:motor_pin4
+    '''
+    def __init__(self,motor_pin1, motor_pin2, motor_pin3, motor_pin4):
+        self.motor_pin1 = motor_pin1
+        self.motor_pin2 = motor_pin2
+        self.motor_pin3 = motor_pin3
+        self.motor_pin4 = motor_pin4
+
+
+        pi.pinMode(self.motor_pin1, 1)
+        pi.pinMode(self.motor_pin2, 1)
+        pi.pinMode(self.motor_pin3, 1)
+        pi.pinMode(self.motor_pin4, 1)
+
+    def forwardAmotor(self):
+        '''
+        正転
+        :return:
+        '''
+        print("{0},{1},forwardA".format(self.motor_pin1,self.motor_pin2))
+        pi.digitalWrite(self.motor_pin1,1)
+        pi.digitalWrite(self.motor_pin2,1)
+
+    def reverseAmotor(self):
+        '''
+        逆転
+        :return:
+        '''
+        print("{0},{1},reverseA".format(self.motor_pin1,self.motor_pin2))
+        pi.digitalWrite(self.motor_pin1,0)
+        pi.digitalWrite(self.motor_pin2,1)
+
+    def stopAmotor(self):
+        '''
+        停止
+        :return:
+        '''
+        print("{0},{1},forward".format(self.motor_pin1,self.motor_pin2))
+        pi.digitalWrite(self.motor_pin1,0)
+        pi.digitalWrite(self.motor_pin2,0)
+
+    def forwardBmotor(self):
+        '''
+        正転
+        :return:
+        '''
+        print("{0},{1},forwardA".format(self.motor_pin3,self.motor_pin4))
+        pi.digitalWrite(self.motor_pin3,1)
+        pi.digitalWrite(self.motor_pin4,1)
+
+    def reverseBmotor(self):
+        '''
+        逆転
+        :return:
+        '''
+        print("{0},{1},forward".format(self.motor_pin3,self.motor_pin4))
+        pi.digitalWrite(self.motor_pin3,0)
+        pi.digitalWrite(self.motor_pin4,1)
+
+    def stopBmotor(self):
+        '''
+        停止
+        :return:
+        '''
+        print("{0},{1},forward".format(self.motor_pin3,self.motor_pin4))
+        pi.digitalWrite(self.motor_pin3,0)
+        pi.digitalWrite(self.motor_pin4,0)
+
+
+
+
 class DCmotor:
     '''
     TA7291のモータドライバーを使用する前提のクラス
@@ -76,12 +182,6 @@ class DCmotor:
     モーターのスピードを変更できてもいいかもしれない
 
 
-    DRV8835は別
-        DRV8835メモ
-        AIN1:PHASE:PMW:20
-        AIN2:ENABLE:21
-        BIN1:PAHSE:PMW:15
-        BIN2:ENABLE:14
     '''
     def __init__(self, motor_pin1, motor_pin2):
 
@@ -145,7 +245,7 @@ class ServoMotor:
         pi.pwmSetClock( ServoMotor.clock )
 
 
-    def right(self, degree=40):
+    def right(self, degree=60):
         '''
         右に40度固定でまげる
         :param degree:
@@ -156,7 +256,7 @@ class ServoMotor:
         target = ServoMotor.SERVO_MAX_VALUE + ServoMotor.SERVO_MIN_VALUE - tmp
         pi.pwmWrite(self.motor_pin1, target)
 
-    def left(self, degree=-40):
+    def left(self, degree=-60):
         '''
         左に40度固定でまげる
         :param degree:
