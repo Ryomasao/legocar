@@ -61,10 +61,10 @@ class LegoCarController:
         :param order:
         :return:
         '''
-        if order == b'a' :
+        if order == b'd' :
             #右
             self.servo_motor.right()
-        elif order == b'd':
+        elif order == b'a':
             #左
             self.servo_motor.left()
         else:
