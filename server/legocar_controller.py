@@ -14,7 +14,8 @@ class LegoCarController:
         #DCモーターを制御するクラス
         self.dcmotor = DCmotor_DRV8835(motor_pin1=14, motor_pin2=15, motor_pin3=20, motor_pin4=21)
         #サーボモータを制御するクラス
-        self.servo_motor = ServoMotor(18)
+        #self.servo_motor = ServoMotor(18)
+        self.servo_motor = NewServoMotor(18)
 
     def accelerator(self, order):
         '''
@@ -54,7 +55,7 @@ class LegoCarController:
     def stop(self):
         self.dcmotor.stopAmotor()
 
-    def handle(self, order):
+    def handle(self, order, degree):
         '''
         orderの値をもとに、まがる。
         TODO:サーボモータの制御はコピペで全然理解してないの後で整理する。とりあえず40度回転で固定。
@@ -63,10 +64,12 @@ class LegoCarController:
         '''
         if order == b'd' :
             #右
-            self.servo_motor.right()
+            #self.servo_motor.right(degree)
+            self.servo_motor.plusRotation()
         elif order == b'a':
             #左
-            self.servo_motor.left()
+            #self.servo_motor.left(degree)
+            self.servo_motor.minusRotation()
         else:
             pass
 
@@ -245,9 +248,9 @@ class ServoMotor:
         pi.pwmSetClock( ServoMotor.clock )
 
 
-    def right(self, degree=60):
+    def right(self, degree=10):
         '''
-        右に40度固定でまげる
+        右に10度固定でまげる
         :param degree:
         :return:
         '''
@@ -256,9 +259,9 @@ class ServoMotor:
         target = ServoMotor.SERVO_MAX_VALUE + ServoMotor.SERVO_MIN_VALUE - tmp
         pi.pwmWrite(self.motor_pin1, target)
 
-    def left(self, degree=-60):
+    def left(self, degree=-10):
         '''
-        左に40度固定でまげる
+        左に10度固定でまげる
         :param degree:
         :return:
         '''
@@ -266,6 +269,87 @@ class ServoMotor:
         tmp = int(float(ServoMotor.SERVO_MAX_VALUE - ServoMotor.SERVO_MIN_VALUE) / 180.0 * float(degree + 90)) + ServoMotor.SERVO_MIN_VALUE
         target = ServoMotor.SERVO_MAX_VALUE + ServoMotor.SERVO_MIN_VALUE - tmp
         pi.pwmWrite(self.motor_pin1, target)
+
+
+class NewServoMotor:
+    '''
+    サーボモータを制御するクラス
+    少しだけ仕組みを理解した上で、かいてみる
+    SG5010、SG90のサーボモータに対応している。
+    具体的には以下の仕様に依存している。
+
+        制御パルス:0.5ms〜2.4ms
+        PWMサイクル:20ms
+
+    '''
+
+    #制御パルス、PWMサイクル、pwmWrite関数の仕様により求められるduty比
+    MIN_DUTY = 26;   #-90度
+    MAX_DUTY = 123;  # 90度
+    MID_DUTY =  MAX_DUTY - MIN_DUTY   # 0度
+
+    #サーボモータを曲げる角度を定義しておく。
+    # 大胆に曲げたい場合は、この数字を大きくしよう。最大90度かな。
+    # 細かく制御したい場合は、この数字を小さくしよう。最小1度かな。
+    ANGLE_BEND = 10;
+
+    #ANGLE_BENDが全体(180度)に対して占める割合
+    RATIO_OF_ANGLE_BEND = int( 180 / ANGLE_BEND)
+
+    #ANGLE_BENDを実現するためduty比
+    ANGLE_BEND_DUTY = int( (MAX_DUTY - MIN_DUTY) / RATIO_OF_ANGLE_BEND)
+
+    #もしduty比が1未満になっちゃったらduty比1としよう。
+    if ANGLE_BEND_DUTY == 0 : ANGLE_BEND_DUTY = 1
+
+
+
+    def __init__(self, servo_motor_pin1):
+        self.motor_pin1 = servo_motor_pin1
+        #ピンの割り当て
+        pi.pinMode( self.motor_pin1, pi.GPIO.PWM_OUTPUT )
+
+        #duty比を変更すると周波数がかわってしまうので、固定するための設定、あまりわかってない。
+        pi.pwmSetMode( pi.GPIO.PWM_MODE_MS )
+
+        #周波数を50Hzにすると、18750/周波数=375 あまりわかってない。
+        pi.pwmSetClock(375)
+
+        #起動時にタイヤをまっすぐにしとく
+        self.dutyState = NewServoMotor.MID_DUTY;
+        pi.pwmWrite(self.motor_pin1,self.dutyState);
+
+
+    def minusRotation(self):
+        '''
+        マイナス側にサーボモータを回転させる。
+        曲がる角度は、クラス変数 ANGLE_BENDで指定した角度。
+        :return:
+        '''
+        self.dutyState -= NewServoMotor.ANGLE_BEND_DUTY;
+        print(NewServoMotor.ANGLE_BEND_DUTY)
+        print(self.dutyState)
+
+        #限界(-90度)を超える場合は、-90度とする
+        if(self.dutyState < NewServoMotor.MIN_DUTY):
+            self.dutyState =  NewServoMotor.MIN_DUTY
+
+        pi.pwmWrite(self.motor_pin1,self.dutyState);
+
+    def plusRotation(self):
+        '''
+        プラス側にサーボモータを回転させる。
+        minusRotationと同様。
+        :return:
+        '''
+        self.dutyState += NewServoMotor.ANGLE_BEND_DUTY;
+        print(self.dutyState)
+
+        #限界(90度)を超える場合は、90度とする
+        if(self.dutyState > NewServoMotor.MAX_DUTY):
+            self.dutyState =  NewServoMotor.MAX_DUTY
+
+        pi.pwmWrite(self.motor_pin1,self.dutyState);
 
 
 
